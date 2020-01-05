@@ -9,16 +9,6 @@ struct Node<T> {
     next: Link<T>,
 }
 
-pub struct IntoIter<T>(List<T>);
-
-pub struct Iter<'a, T> {
-    next: Option<&'a Node<T>>,
-}
-
-pub struct IterMut<'a, T> {
-    next: Option<&'a mut Node<T>>,
-}
-
 impl<T> List<T> {
     pub fn new() -> Self {
         List { head: None }
@@ -79,6 +69,16 @@ impl<T> Drop for List<T> {
             // so no unbounded recursion occurs.
         }
     }
+}
+
+pub struct IntoIter<T>(List<T>);
+
+pub struct Iter<'a, T> {
+    next: Option<&'a Node<T>>,
+}
+
+pub struct IterMut<'a, T> {
+    next: Option<&'a mut Node<T>>,
 }
 
 impl<T> Iterator for IntoIter<T> {
