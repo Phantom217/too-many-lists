@@ -24,6 +24,8 @@ impl<T> Node<T> {
     }
 }
 
+pub struct IntoIter<T>(List<T>);
+
 impl<T> List<T> {
     pub fn new() -> Self {
         List {
@@ -39,34 +41,30 @@ impl<T> List<T> {
         match self.head.take() {
             Some(old_head) => {
                 // non-empty list, need to connect the old_head
-                old_head.borrow_mut().prev = Some(new_head.clone()); // +1 new_head
-                new_head.borrow_mut().next = Some(old_head);         // +1 old_head
-                self.head = Some(new_head);             // +1 new_head, -1 old_head
-                // total: +2 new_head, +0 old_head -- OK!
+                old_head.borrow_mut().prev = Some(new_head.clone());
+                new_head.borrow_mut().next = Some(old_head);
+                self.head = Some(new_head);
             }
             None => {
                 // empty list, need to set the tail
-                self.tail = Some(new_head.clone());     // +1 new_head
-                self.head = Some(new_head);             // +1 new_head
-                // total: +2 new_head -- OK!
+                self.tail = Some(new_head.clone());
+                self.head = Some(new_head);
             }
         }
     }
 
     pub fn pop_front(&mut self) -> Option<T> {
         // need to take the old head, ensuring it's -2
-        self.head.take().map(|old_head| {               // -1 old
+        self.head.take().map(|old_head| {
             match old_head.borrow_mut().next.take() {
-                Some(new_head) => {                     // -1 new
+                Some(new_head) => {
                     // not emptying list
-                    new_head.borrow_mut().prev.take();  // -1 old
-                    self.head = Some(new_head);         // +1 new
-                    // total: -2 old, +0 new
+                    new_head.borrow_mut().prev.take();
+                    self.head = Some(new_head);
                 }
                 None => {
                     // emptying list
-                    self.tail.take();                   // -1 old
-                    // total: -2 old, (no new)
+                    self.tail.take();
                 }
             }
 
@@ -75,9 +73,9 @@ impl<T> List<T> {
     }
 
     pub fn peek_front(&self) -> Option<Ref<T>> {
-        self.head.as_ref().map(|node| {
-            Ref::map(node.borrow(), |node| &node.elem)
-        })
+        self.head
+            .as_ref()
+            .map(|node| Ref::map(node.borrow(), |node| &node.elem))
     }
 
     pub fn push_back(&mut self, elem: T) {
@@ -113,27 +111,45 @@ impl<T> List<T> {
     }
 
     pub fn peek_back(&self) -> Option<Ref<T>> {
-        self.tail.as_ref().map(|node| {
-            Ref::map(node.borrow(), |node| &node.elem)
-        })
+        self.tail
+            .as_ref()
+            .map(|node| Ref::map(node.borrow(), |node| &node.elem))
     }
 
     pub fn peek_back_mut(&mut self) -> Option<RefMut<T>> {
-        self.tail.as_ref().map(|node| {
-            RefMut::map(node.borrow_mut(), |node| &mut node.elem)
-        })
+        self.tail
+            .as_ref()
+            .map(|node| RefMut::map(node.borrow_mut(), |node| &mut node.elem))
     }
 
     pub fn peek_front_mut(&mut self) -> Option<RefMut<T>> {
-        self.head.as_ref().map(|node| {
-            RefMut::map(node.borrow_mut(), |node| &mut node.elem)
-        })
+        self.head
+            .as_ref()
+            .map(|node| RefMut::map(node.borrow_mut(), |node| &mut node.elem))
+    }
+
+    pub fn into_iter(self) -> IntoIter<T> {
+        IntoIter(self)
     }
 }
 
 impl<T> Drop for List<T> {
     fn drop(&mut self) {
         while self.pop_front().is_some() {}
+    }
+}
+
+impl<T> Iterator for IntoIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<T> {
+        self.0.pop_front()
+    }
+}
+
+impl<T> DoubleEndedIterator for IntoIter<T> {
+    fn next_back(&mut self) -> Option<T> {
+        self.0.pop_back()
     }
 }
 
@@ -194,7 +210,6 @@ mod test {
         // Check exhaustion
         assert_eq!(list.pop_back(), Some(1));
         assert_eq!(list.pop_back(), None);
-
     }
 
     #[test]
@@ -214,5 +229,22 @@ mod test {
         assert_eq!(&mut *list.peek_front_mut().unwrap(), &mut 3);
         assert_eq!(&*list.peek_back().unwrap(), &1);
         assert_eq!(&mut *list.peek_back_mut().unwrap(), &mut 1);
+    }
+
+    #[test]
+    fn into_iter() {
+        let mut list = List::new();
+
+        list.push_front(1);
+        list.push_front(2);
+        list.push_front(3);
+
+        let mut iter = list.into_iter();
+
+        assert_eq!(iter.next(), Some(3));
+        assert_eq!(iter.next_back(), Some(1));
+        assert_eq!(iter.next(), Some(2));
+        assert_eq!(iter.next_back(), None);
+        assert_eq!(iter.next(), None);
     }
 }
