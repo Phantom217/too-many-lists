@@ -17,14 +17,12 @@ struct Node<T> {
 impl<T> Node<T> {
     fn new(elem: T) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Node {
-            elem,
+            elem: elem,
             prev: None,
             next: None,
         }))
     }
 }
-
-pub struct IntoIter<T>(List<T>);
 
 impl<T> List<T> {
     pub fn new() -> Self {
@@ -35,47 +33,19 @@ impl<T> List<T> {
     }
 
     pub fn push_front(&mut self, elem: T) {
-        // new node needs +2 links, everything else should be +0
         let new_head = Node::new(elem);
 
         match self.head.take() {
             Some(old_head) => {
-                // non-empty list, need to connect the old_head
                 old_head.borrow_mut().prev = Some(new_head.clone());
                 new_head.borrow_mut().next = Some(old_head);
                 self.head = Some(new_head);
             }
             None => {
-                // empty list, need to set the tail
                 self.tail = Some(new_head.clone());
                 self.head = Some(new_head);
             }
         }
-    }
-
-    pub fn pop_front(&mut self) -> Option<T> {
-        // need to take the old head, ensuring it's -2
-        self.head.take().map(|old_head| {
-            match old_head.borrow_mut().next.take() {
-                Some(new_head) => {
-                    // not emptying list
-                    new_head.borrow_mut().prev.take();
-                    self.head = Some(new_head);
-                }
-                None => {
-                    // emptying list
-                    self.tail.take();
-                }
-            }
-
-            Rc::try_unwrap(old_head).ok().unwrap().into_inner().elem
-        })
-    }
-
-    pub fn peek_front(&self) -> Option<Ref<T>> {
-        self.head
-            .as_ref()
-            .map(|node| Ref::map(node.borrow(), |node| &node.elem))
     }
 
     pub fn push_back(&mut self, elem: T) {
@@ -110,6 +80,28 @@ impl<T> List<T> {
         })
     }
 
+    pub fn pop_front(&mut self) -> Option<T> {
+        self.head.take().map(|old_head| {
+            match old_head.borrow_mut().next.take() {
+                Some(new_head) => {
+                    new_head.borrow_mut().prev.take();
+                    self.head = Some(new_head);
+                }
+                None => {
+                    self.tail.take();
+                }
+            }
+
+            Rc::try_unwrap(old_head).ok().unwrap().into_inner().elem
+        })
+    }
+
+    pub fn peek_front(&self) -> Option<Ref<T>> {
+        self.head
+            .as_ref()
+            .map(|node| Ref::map(node.borrow(), |node| &node.elem))
+    }
+
     pub fn peek_back(&self) -> Option<Ref<T>> {
         self.tail
             .as_ref()
@@ -138,6 +130,8 @@ impl<T> Drop for List<T> {
         while self.pop_front().is_some() {}
     }
 }
+
+pub struct IntoIter<T>(List<T>);
 
 impl<T> Iterator for IntoIter<T> {
     type Item = T;
