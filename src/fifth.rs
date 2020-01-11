@@ -12,16 +12,6 @@ struct Node<T> {
     next: Link<T>,
 }
 
-pub struct IntoIter<T>(List<T>);
-
-pub struct Iter<'a, T> {
-    next: Option<&'a Node<T>>,
-}
-
-pub struct IterMut<'a, T> {
-    next: Option<&'a mut Node<T>>,
-}
-
 impl<T> List<T> {
     pub fn new() -> Self {
         List {
@@ -88,6 +78,16 @@ impl<T> List<T> {
             next: self.head.as_mut().map(|node| &mut **node),
         }
     }
+}
+
+pub struct IntoIter<T>(List<T>);
+
+pub struct Iter<'a, T> {
+    next: Option<&'a Node<T>>,
+}
+
+pub struct IterMut<'a, T> {
+    next: Option<&'a mut Node<T>>,
 }
 
 impl<T> Drop for List<T> {
